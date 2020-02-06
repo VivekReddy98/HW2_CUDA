@@ -1,0 +1,7 @@
+#vkarri Vivek Reddy Karri
+
+Procedure:
+This is a Indefinite Integral Question. So it includes two parts. Finding area of individual Rectangular Blocks and then cummulatively adding it across all the rectangles. 
+
+Out of these the first step is paralellizable because the value is not dependent on any previous rectangles. So this is implemented in the GPU side and a kernel was written to compute the area's.
+Note that, the values x and y were not computed in the CPU end but there were at the GPU end. After computing the area, the data was transferred back to the CPU end for Plotting and Recording purposes. 

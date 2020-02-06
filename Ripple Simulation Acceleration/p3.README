@@ -1,0 +1,135 @@
+sjoshi26 shashank joshi
+akwatra archit kwatra
+vkarri vivek reddy karri
+
+V1: 
+
+1) Perform experiments and compare and contrast the two versions (5-point vs 13-point). What are the tradeoffs? Note that the 13-point version evolves faster and you need to run it with shorter end_time when comparing with 5-point version.
+
+13pt Stencil considers information from 12 neighbours to compute its value for the next iteration. So, Obviosuly it takes less time to Settle down and also the Ripple seems pretty concentrated with a crest followed by trough unlike 5pt stencil which looks scattered even after 1 sec of endtime and 13pt stencil was just ran for 0.5 seconds. The observed tradeoffs were that to implement 13pt stencil, we padded zeros in the end because otherwise the code looks pretty ugly, tough to code, debug and maintain. So one tradeoff was a little memory overhead and a very little computation overhead.
+
+V2: 
+
+1) Compare the CPU/GPU runs for varying grid sizes (16, 32, 64, 128, ..., 1024, etc.)
+
+Ans) For CPU: As we increase the number of  grid points the time is appearing to be increasing exponentially.
+     For GPU:As the number of grid points is increased there is an increase in time that is not exponential .It is somewhat linear and is much better than CPU for larger Grid Sizes.
+
+Comparison Data (Various Grid Sizes) (Was ran on 1 Node with CUDA-ONLY (V2) Algorithm)
+
+16 x 16 grid, until 0.800000, with 8 threads
+CPU took 0.000749 seconds
+GPU computation: 1.256352 msec
+GPU took 0.292251 seconds
+
+(32 x 32) grid, until 0.800000, with 8 threads
+CPU took 0.003324 seconds
+GPU computation: 3.566240 msec
+GPU took 0.290267 seconds
+
+(64 x 64) grid, until 0.800000, with 8 threads
+CPU took 0.026803 seconds
+GPU computation: 14.346368 msec
+GPU took 0.323594 seconds
+
+(128 x 128) grid, until 0.800000, with 8 threads
+CPU took 0.211026 seconds
+GPU computation: 70.533218 msec
+GPU took 0.381475 seconds
+
+(256 x 256) grid, until 0.800000, with 8 threads
+CPU took 1.763923 seconds
+GPU computation: 445.333038 msec
+GPU took 0.784354 seconds
+
+(512 x 512) grid, until 0.800000, with 8 threads
+CPU took 14.102880 seconds
+GPU computation: 3875.342041 msec
+GPU took 4.197648 seconds
+
+(1024 x 1024) grid, until 0.800000, with 8 threads
+CPU took 110.544371 seconds
+GPU computation: 20370.474609 msec
+GPU took 20.698198 seconds
+
+V3: 
+
+1) How well does your algorithm scale on the GPU? Do you find cases (grid size, thread number, etc.) where the GPU implementation does not scale well? Why?
+
+Ans) It scaled really well, for grid sizes greater than 256, the GPU was very efficient and the time sclaing linear w.r.t # of grid points. We havent used much of the local memory available in the GPU, so the increase/decrease in thread number should not matter. 
+
+2) Reason about the differences between the cudaEventXXX() and the gettimeofday() APIs. What is each measuring? Which one should we consider for what? What's a fair comparison?
+
+Ans) cudaEvents timers are based off high resolution counters on board the GPU, and they have lower latency and better precision than using a host timer because they come directly off the hardware. The per-stream nature of cudaEvents can also be useful for recording asyn operations like concurrent kernel execution. In our code, cudaEventXXXX() is measuring time for CUDA kernel execution, including mem transfers between kernel calls. On the other hand gettimeofday() API is measuring complete overhead and computation calling a GPU incurs. An Apple-Apple comparison would be to compare gettimeoffay() because our problem is kind of overlapped data-copy and the data copy statement is blocking and as a result, gettimeofday() is a better fit.
+
+3) Compare your CPU and GPU runtimes for different grid sizes. When is the GPU better, and when is it worse?
+
+Ans) The Comparison Data Was given below, The benefits of using GPU reap when the Grid sized grow high and when it overshadows the Ovehead of data transmission latency. CPU was better was lower grid sizes such as <128, At 256 the difference is marginal. However, for the sizes 512, 1024, 2048, the compute time for CPU is exponential however, the time for GPU scaled linearly.
+
+4) Integrating CUDA and MPI involves more sophisticated code. What problems did you encounter? How did you address them?
+
+Ans) MPI-CUDA Hybrid involved Node level Data slicing and then followed by Block and Thread. For Node-Level Slicing we used Vertical Matrix Slicing i.e. Each Node handled its own share of rows in the matrix. They've communicated the boundary Rows (2) with its topological neighbours (topological based on rank). This was a bit tricky, as we tried Non-Blocking commands and so MPI_Wait and Status have to be taken care of. Also, now that the overhead on the GPU is decreased, kernel function had to be tweaked to slightly alter the implmentation. 
+
+Comparison Data (Various Grid Sizes) (Was ran on 4 Different Nodes with CUDA-MPI Hybrid (V3) Algorithm)
+
+1) For Grid Size of 256:
+
+CPU took 0.306551 seconds
+CPU took 0.301381 seconds
+CPU took 0.302303 seconds
+CPU took 0.303469 seconds
+GPU computation: 87.703651 msec
+GPU took 0.371519 seconds
+GPU computation: 88.602211 msec
+GPU took 0.378165 seconds
+GPU computation: 85.643135 msec
+GPU took 0.378378 seconds
+GPU computation: 95.179619 msec
+GPU took 0.604989 seconds
+
+2) For Grid Size of 512:
+
+CPU took 2.430039 seconds
+CPU took 2.431212 seconds
+CPU took 2.428710 seconds
+CPU took 2.428892 seconds
+GPU computation: 552.559082 msec
+GPU took 0.849204 seconds
+GPU computation: 557.548157 msec
+GPU took 0.852345 seconds
+GPU computation: 565.835510 msec
+GPU took 0.858621 seconds
+GPU computation: 565.508911 msec
+GPU took 1.108055 seconds
+
+3) For Grid Size of 1024:
+
+CPU took 19.521577 seconds
+CPU took 19.524623 seconds
+CPU took 19.525622 seconds
+GPU computation: 3718.283447 msec
+GPU took 4.013552 seconds
+GPU computation: 3778.125732 msec
+GPU took 4.074875 seconds
+GPU computation: 3926.564941 msec
+GPU took 4.221528 seconds
+GPU computation: 3784.546631 msec
+GPU took 4.313504 seconds
+
+
+4) For Grid Size of 2048:
+
+CPU took 152.470358 seconds
+CPU took 152.458389 seconds
+CPU took 152.460133 seconds
+CPU took 152.445030 seconds
+GPU computation: 25504.925781 msec
+GPU took 26.059488 seconds
+GPU computation: 27108.898438 msec
+GPU took 27.412896 seconds
+GPU computation: 27120.492188 msec
+GPU took 27.425887 seconds
+GPU computation: 27237.923828 msec
+GPU took 27.539149 seconds
+
+
