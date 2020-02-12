@@ -9,5 +9,5 @@ Assigment Completed as a part of CSC 548 Paralell Systems at NC State University
 1) Converted 5pt Stencil to 13pt Stencil Evolve function to provide faster convergence of the Ripple.
 2) Implemented CUDA only variant and tested for various GRID sizes
 3) Implemented CUDA-MPI variant and tested for various GRID sizes on four diffent nodes, with different memory address spaces.
-4) Stored the Data and the explanation of the implementational nuances are specified in p3.README.
+4) Performance comparison and the implementational nuances are specified in p3.README.
  
