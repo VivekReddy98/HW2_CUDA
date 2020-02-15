@@ -199,10 +199,10 @@ void run_sim(double *u, double *u0, double *u1, double *pebbles, int n, double h
   //uo = (double*)malloc(sizeof(double) * n * n);
 
   /* put the inital configurations into the calculation arrays */
-  fastMemCpy(un, u0, sizeof(double) * n * n);
+  memcpy(un, u0, sizeof(double) * n * n);
 
   int index1 = n*n;
-  fastMemCpy(un+index1, u1, sizeof(double) * n * n);
+  memcpy(un+index1, u1, sizeof(double) * n * n);
 
   /* start at t=0.0 */
   t = 0.;
@@ -244,7 +244,7 @@ void run_sim(double *u, double *u0, double *u1, double *pebbles, int n, double h
       /* run a central finite differencing scheme to solve
        * the wave equation in 2D */
 
-      #pragma omp parallel for default(shared) private(i, j, idx, idx_old, idx_new, idx_peb) num_threads(nthreads)
+      #pragma omp parallel for default(shared) private(i, j, idx, idx_old, idx_new, idx_peb) schedule(dynamic, BLK_SIZE) num_threads(nthreads)
       for(i = 0; i < n; i++)
       {
 
@@ -386,7 +386,7 @@ void init(double *u, double *pebbles, int n)
 {
   int i, j, idx;
 
-  #pragma omp parallel for default(shared) private(i, j, idx) num_threads(nthreads)
+  //#pragma omp parallel for default(shared) private(i, j, idx) schedule(dynamic, BLK_SIZE) num_threads(nthreads)
   for(i = 0; i < n ; i++)
   {
     for(j = 0; j < n ; j++)
@@ -478,7 +478,7 @@ void fastMemCpy(void *dest, const void *src, size_t n)
 
    int i;
 
-   #pragma omp parallel for default(shared) private(i) num_threads(nthreads)
+   #pragma omp parallel for default(shared) private(i) schedule(dynamic, BLK_SIZE) num_threads(nthreads)
    for (i=0; i<n; i++)
        *(cdest+i) = *(csrc+i);
 }

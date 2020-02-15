@@ -12,6 +12,7 @@
 
 
 #define OPTIM 5
+#define BLK_SIZE 256
 
 //#define __DEBUG
 
