@@ -23,4 +23,7 @@ void init(double *u, double *pebbles, int n);
 void error_u(double *uerr, double *avgerr, double *ua, double *ub, int n);
 void print_heatmap(char *filename, double *u, int n, double h);
 
+// Custom Defined Functions:
+void fastMemCpy(void *dest, const void *src, size_t n);
+
 #endif
