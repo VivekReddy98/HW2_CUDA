@@ -10,6 +10,9 @@
 #define TSCALE 1.0
 #define VSQR 0.1
 
+
+#define OPTIM 5
+
 //#define __DEBUG
 
 void run_sim(double *u, double *u0, double *u1, double *pebbles, int n, double h, double end_time);

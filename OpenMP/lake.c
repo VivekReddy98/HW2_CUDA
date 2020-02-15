@@ -38,6 +38,7 @@
 /* Probably not necessary but doesn't hurt */
 #define _USE_MATH_DEFINES
 
+
 /* Number of OpenMP threads */
 int nthreads;
 
@@ -186,16 +187,18 @@ void run_sim(double *u, double *u0, double *u1, double *pebbles, int n, double h
   double *un, *uc, *uo;
   /* time vars */
   double t, dt;
-  int i, j, idx;
+  int i, j, idx, idx_old, idx_new, idx_peb;
+
 
   /* allocate the calculation arrays */
-  un = (double*)malloc(sizeof(double) * n * n);
-  uc = (double*)malloc(sizeof(double) * n * n);
-  uo = (double*)malloc(sizeof(double) * n * n);
+  un = (double*)malloc(sizeof(double) * n * n * OPTIM);
+  //uc = (double*)malloc(sizeof(double) * n * n * OPTIM);
+  //uo = (double*)malloc(sizeof(double) * n * n);
 
   /* put the inital configurations into the calculation arrays */
-  memcpy(uo, u0, sizeof(double) * n * n);
-  memcpy(uc, u1, sizeof(double) * n * n);
+  memcpy(un, u0, sizeof(double) * n * n);
+  int index1 = n*n;
+  memcpy(un+index1, u1, sizeof(double) * n * n);
 
   /* start at t=0.0 */
   t = 0.;
@@ -210,52 +213,86 @@ void run_sim(double *u, double *u0, double *u1, double *pebbles, int n, double h
    * be aware the possibility exists for madness and mayhem */
   dt = h / 2.;
 
+  int counter = 1;
+
   /* loop until time >= end_time */
   while(1)
   {
 
-    /* run a central finite differencing scheme to solve
-     * the wave equation in 2D */
-    for( i = 0; i < n; i++)
-    {
-      for( j = 0; j < n; j++)
+    printf("%d\n", counter);
+
+    if (counter%OPTIM == 1) {
+      counter = counter+1;
+    }
+
+    else if (counter%OPTIM == 0){
+      int indexN = (OPTIM-1)*n*n;
+      int indexC = (OPTIM-2)*n*n;
+
+      memcpy(un+(n*n), un+indexN, sizeof(double) * n * n);
+      memcpy(un, un+indexC, sizeof(double) * n * n);
+
+      counter = counter+1;
+    }
+
+    else {
+      /* run a central finite differencing scheme to solve
+       * the wave equation in 2D */
+      for( i = 0; i < n; i++)
       {
-        idx = j + i * n;
-
-        /* impose the u|_s = 0 boundary conditions */
-        if( i == 0 || i == n - 1 || j == 0 || j == n - 1)
+        for( j = 0; j < n; j++)
         {
-          un[idx] = 0.;
-          continue;
+          idx_new = j + i * n + (counter%OPTIM)*n*n;
 
+          idx = j + i * n + ((counter%OPTIM)-1)*n*n;
+
+          idx_old = j + i * n + ((counter%OPTIM)-2)*n*n;
+
+          idx_peb = j + i * n;
+
+          /* impose the u|_s = 0 boundary conditions */
+          if( i == 0 || i == n - 1 || j == 0 || j == n - 1)
+          {
+            un[idx] = 0.;
+            continue;
+          }
+
+          int NeighNeigh = 0;
+
+          if((i > 1 && i < n - 2) && (j > 1 && j < n - 2))
+          {
+             NeighNeigh = 0.125*(un[idx-2] + un[idx+2] + un[idx - 2*(n + 4)] - un[idx + 2*(n + 4)]);  // WW, EE, NN, SS;
+          }
+
+          int immNeigh = 0.25*(un[idx - n - 5] + un[idx - n - 3] + un[idx + n + 3] + un[idx + n + 5]);  // NW, NE, SW, SE;
+
+          int Neigh = un[idx-1] + un[idx+1] + un[idx + n + 4] + un[idx - n - 4]; // W, E, S, N
+
+          un[idx_new] = 2*un[idx] - un[idx_old] + VSQR *(dt * dt) * (Neigh + immNeigh + NeighNeigh - 5.5 * un[idx])/(h * h) + f(pebbles[idx_peb],t);
+          /* otherwise do the FD scheme */
         }
-
-        int NeighNeigh = 0;
-
-        if((i > 1 && i < n - 2) && (j > 1 && j < n - 2))
-        {
-           NeighNeigh = 0.125*(uc[idx-2] + uc[idx+2] + uc[idx - 2*(n + 4)] - uc[idx + 2*(n + 4)]);  // WW, EE, NN, SS;
-        }
-
-        int immNeigh = 0.25*(uc[idx - n - 5] + uc[idx - n - 3] + uc[idx + n + 3] + uc[idx + n + 5]);  // NW, NE, SW, SE;
-
-        int Neigh = uc[idx-1] + uc[idx+1] + uc[idx + n + 4] + uc[idx - n - 4]; // W, E, S, N
-
-        un[idx] = 2*uc[idx] - uo[idx] + VSQR *(dt * dt) * (Neigh + immNeigh + NeighNeigh - 5.5 * uc[idx])/(h * h) + f(pebbles[idx],t);
-
-        /* otherwise do the FD scheme */
       }
+
+
+      counter = counter+1;
     }
 
     /* update the calculation arrays for the next time step */
-    memcpy(uo, uc, sizeof(double) * n * n);
-    memcpy(uc, un, sizeof(double) * n * n);
+    // memcpy(uo, uc, sizeof(double) * n * n);
+    // memcpy(uc, un, sizeof(double) * n * n);
 
     /* have we reached the end? */
     if(!tpdt(&t,dt,end_time)) break;
   }
+
+  if (counter%OPTIM == 0 || counter%OPTIM == 1) counter = OPTIM-1;
+  else{
+      counter = counter%OPTIM;
+  }
+
+
   /* cpy the last updated to the output array */
-  memcpy(u, un, sizeof(double) * n * n);
+  memcpy(u, un+(counter*n*n), sizeof(double) * n * n);
 }
 
 /*****************************
