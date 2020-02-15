@@ -31,6 +31,7 @@
 #include <string.h>
 #include <math.h>
 #include <sys/time.h>
+#include <omp.h>
 
 #include "./lake.h"
 #include "./lake_util.h"
@@ -57,6 +58,8 @@ int main(int argc, char *argv[])
   double  end_time  = (double)atof(argv[3]);
           nthreads  = atoi(argv[4]);
   int     narea     = npoints * npoints;
+
+  omp_set_num_threads(nthreads);
 
   /* check input params for resitrictions */
   if ( npoints % nthreads != 0 )
@@ -187,8 +190,8 @@ void run_sim(double *u, double *u0, double *u1, double *pebbles, int n, double h
   double *un, *uc, *uo;
   /* time vars */
   double t, dt;
-  int i, j, idx, idx_old, idx_new, idx_peb;
 
+  int i, j, idx, idx_old, idx_new, idx_peb;
 
   /* allocate the calculation arrays */
   un = (double*)malloc(sizeof(double) * n * n * OPTIM);
@@ -220,6 +223,7 @@ void run_sim(double *u, double *u0, double *u1, double *pebbles, int n, double h
   {
 
     printf("%d\n", counter);
+    //fflush(stdout);
 
     if (counter%OPTIM == 1) {
       counter = counter+1;
@@ -238,9 +242,10 @@ void run_sim(double *u, double *u0, double *u1, double *pebbles, int n, double h
     else {
       /* run a central finite differencing scheme to solve
        * the wave equation in 2D */
-      for( i = 0; i < n; i++)
+      #pragma omp parallel for default(shared) private(i, j, idx, idx_old, idx_new, idx_peb) collapse(2) num_threads(nthreads)
+      for(i = 0; i < n; i++)
       {
-        for( j = 0; j < n; j++)
+        for(j = 0; j < n; j++)
         {
           idx_new = j + i * n + (counter%OPTIM)*n*n;
 
@@ -293,6 +298,7 @@ void run_sim(double *u, double *u0, double *u1, double *pebbles, int n, double h
 
   /* cpy the last updated to the output array */
   memcpy(u, un+(counter*n*n), sizeof(double) * n * n);
+  free(un);
 }
 
 /*****************************
