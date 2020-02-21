@@ -219,32 +219,38 @@ void run_sim(double *u, double *u0, double *u1, double *pebbles, int n, double h
   int counter = 1;
   /* loop until time >= end_time */
 
+  // Setting number of gangs for Manual Setting, Although not used in the final implementation.
   int ngangs = n/nthreads;
 
+  // To reduce multiple divisions, it has been pre-computed and sent to the device,
   double optDiv = 1/(h * h);
+
   // Defining Scope of the Data on the device
   #pragma acc enter data copyin(un[:n*n],uc[:n*n],uo[:n*n],pebbles[:n*n], n, optDiv)
   while(1)
   {
     /* run a central finite differencing scheme to solve
     //  * the wave equation in 2D */
-    // #pragma acc kernels loop private(i, j, idx)
-    //#pragma acc kernels loop present(un[:n*n],uc[:n*n],uo[:n*n],pebbles[:n*n], n)
+
+    // OpenACC Pragma Directive for paralellizing Outer Loop.
     #pragma acc kernels loop private(i, j, idx) present(un,uc,uo,pebbles,n)
+    // OpenMP Pragma Directive for paralellizing Outer Loop.
     #pragma omp parallel for default(shared) private(i, j, idx) num_threads(nthreads)
     for( i = 0; i < n; i++)
         {
+          // Caching uc for faster performance
           #pragma acc cache(uc[(i-2)*n:(i+2)*n])
           for( j = 0; j < n; j++)
           {
             idx = j + i * n;
 
-            /* impose the u|_s = 0 boundary conditions */
+            /* imposing the boundary conditions */
             if(i < 2 || i > n - 3 || j < 2 || j > n - 3)
             {
                   un[idx] = 0.;
             }
 
+            // Else Compute the un[idx]
             else
             {
             un[idx] = 2 * uc[idx] - uo[idx] + VSQR * (dt * dt) * ((uc[idx - 1] + uc[idx + 1] + uc[idx + n] + uc[idx - n] +
@@ -256,14 +262,18 @@ void run_sim(double *u, double *u0, double *u1, double *pebbles, int n, double h
           }
         }
 
+    // Check and updte the time, if crosses break.
     if(!tpdt(&t,dt,end_time)) break;
     else{
+      // Pointer Switching optimization instead of copying data to and fro from CPU data to GPU data.
       double *temp_d = uo;
       uo = uc;
       uc = un;
       un = temp_d;
     }
 
+
+    // Few Debugging Statements Uncommented.
     #ifdef _OPENACC
       //printf("%p, %p, %p\n", uc, uo, un);
     #endif
@@ -273,6 +283,7 @@ void run_sim(double *u, double *u0, double *u1, double *pebbles, int n, double h
     #endif
 
   }
+  // After the execution, data has been copied back to the original HOst placeholders
   #pragma acc exit data copyout(un[:n*n],uc[:n*n],uo[:n*n],pebbles[:n*n], n)
 
   /* cpy the last updated to the output array */
