@@ -1,0 +1,102 @@
+
+                Serial Program BenchMark.
+running ./lake with (512 x 512) grid, until 4.000000, with 1 threads
+Initialization took 0.011856 seconds
+Simulation took 68.137127 seconds
+Init+Simulation took 68.148983 seconds
+
+                 OpenMP Acceleration
+running ./lake with (512 x 512) grid, until 4.000000, with 16 threads
+Initialization took 0.008639 seconds
+Simulation took 3.931512 seconds
+Init+Simulation took 3.940151 seconds
+
+                OpenACC Acceleration
+running ./lake with (512 x 512) grid, until 4.000000, with 16 threads
+Initialization took 0.011424 seconds
+Simulation took 1.570750 seconds
+Init+Simulation took 1.582174 seconds
+
+Acceleration achieved for OpenACC over Serial Code was around 42x.
+
+              Open ACC Compilation Output:
+224, Generating enter data copyin(n,pebbles[:n*n],uc[:n*n],un[:n*n],uo[:n*n])
+231, Generating present(n,pebbles[:],uc[:],un[:],uo[:])
+233, Loop is parallelizable
+236, Loop is parallelizable
+     Accelerator kernel generated
+     Generating Tesla code
+    233, #pragma acc loop gang, vector(4) /* blockIdx.y threadIdx.y */
+    236, #pragma acc loop gang, vector(32) /* blockIdx.x threadIdx.x */
+274, Generating exit data copyout(n,pebbles[:n*n],uc[:n*n],un[:n*n],uo[:n*n])
+
+
+              OpenACC Runtime Statistics:
+Accelerator Kernel Timing data
+/home/vkarri/HW2_CUDA/OpenMP/lake.c
+  run_sim  NVIDIA  devicenum=0
+    time(us): 709,464
+    224: data region reached 1 time
+        224: data copyin transfers: 5
+             device time(us): total=3,685 max=933 min=9 avg=737
+    231: compute region reached 4097 times
+        236: kernel launched 4097 times
+            grid: [16x128]  block: [32x4]
+             device time(us): total=702,052 max=177 min=157 avg=171
+            elapsed time(us): total=793,706 max=830 min=179 avg=193
+    231: data region reached 8194 times
+    274: data region reached 1 time
+        274: data copyout transfers: 5
+             device time(us): total=3,727 max=938 min=11 avg=745
+
+
+
+             OpenACC OPT-> setting numgangs and nthreads.
+
+ running ./lake with (512 x 512) grid, until 4.000000, with 16 threads
+ Initialization took 0.008107 seconds
+ Simulation took 1.608010 seconds
+ Init+Simulation took 1.616117 seconds
+
+
+ Accelerator Kernel Timing data
+/home/vkarri/HW2_CUDA/OpenMP/lake.c
+  run_sim  NVIDIA  devicenum=0
+    time(us): 979,995
+    225: data region reached 1 time
+        225: data copyin transfers: 5
+             device time(us): total=1,522 max=395 min=10 avg=304
+    232: compute region reached 4097 times
+        236: kernel launched 4097 times
+            grid: [16x32]  block: [32x16]
+             device time(us): total=977,128 max=261 min=236 avg=238
+            elapsed time(us): total=1,069,546 max=819 min=258 avg=261
+    232: data region reached 8194 times
+    274: data region reached 1 time
+        274: data copyout transfers: 5
+             device time(us): total=1,345 max=342 min=12 avg=269
+
+
+              OpenACC OPT-> Inline Function.
+running ./lake with (512 x 512) grid, until 4.000000, with 16 threads
+Initialization took 0.003446 seconds
+Simulation took 1.251639 seconds
+Init+Simulation took 1.255085 seconds
+
+
+Accelerator Kernel Timing data
+/home/vkarri/HW2_CUDA/OpenMP/lake.c
+  run_sim  NVIDIA  devicenum=0
+    time(us): 705,418
+    225: data region reached 1 time
+        225: data copyin transfers: 5
+             device time(us): total=1,519 max=393 min=10 avg=303
+    232: compute region reached 4097 times
+        236: kernel launched 4097 times
+            grid: [16x128]  block: [32x4]
+             device time(us): total=702,556 max=176 min=158 avg=171
+            elapsed time(us): total=792,550 max=617 min=179 avg=193
+    232: data region reached 8194 times
+    274: data region reached 1 time
+        274: data copyout transfers: 5
+             device time(us): total=1,343 max=342 min=11 avg=268

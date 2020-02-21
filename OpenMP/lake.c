@@ -32,6 +32,7 @@
 #include <math.h>
 #include <sys/time.h>
 #include <omp.h>
+#include <openacc.h>
 
 #include "./lake.h"
 #include "./lake_util.h"
@@ -190,19 +191,17 @@ void run_sim(double *u, double *u0, double *u1, double *pebbles, int n, double h
   double *un, *uc, *uo;
   /* time vars */
   double t, dt;
-
-  int i, j, idx, idx_old, idx_new, idx_peb;
+  int i, j, k, idx;
+  double *temp_d;
 
   /* allocate the calculation arrays */
-  un = (double*)malloc(sizeof(double) * n * n * OPTIM);
-  //uc = (double*)malloc(sizeof(double) * n * n * OPTIM);
-  //uo = (double*)malloc(sizeof(double) * n * n);
+  un = (double*)malloc(sizeof(double) * n * n);
+  uc = (double*)malloc(sizeof(double) * n * n);
+  uo = (double*)malloc(sizeof(double) * n * n);
 
   /* put the inital configurations into the calculation arrays */
-  memcpy(un, u0, sizeof(double) * n * n);
-
-  int index1 = n*n;
-  memcpy(un+index1, u1, sizeof(double) * n * n);
+  memcpy(uo, u0, sizeof(double) * n * n);
+  memcpy(uc, u1, sizeof(double) * n * n);
 
   /* start at t=0.0 */
   t = 0.;
@@ -218,89 +217,70 @@ void run_sim(double *u, double *u0, double *u1, double *pebbles, int n, double h
   dt = h / 2.;
 
   int counter = 1;
-
   /* loop until time >= end_time */
+
+  int ngangs = n/nthreads;
+
+  double optDiv = 1/(h * h);
+  // Defining Scope of the Data on the device
+  #pragma acc enter data copyin(un[:n*n],uc[:n*n],uo[:n*n],pebbles[:n*n], n, optDiv)
   while(1)
   {
-
-    printf("%d\n", counter);
-    //fflush(stdout);
-
-    if (counter%OPTIM == 1) {
-      counter = counter+1;
-    }
-
-    else if (counter%OPTIM == 0){
-      int indexN = (OPTIM-1)*n*n;
-      int indexC = (OPTIM-2)*n*n;
-
-      memcpy(un+(n*n), un+indexN, sizeof(double) * n * n);
-      memcpy(un, un+indexC, sizeof(double) * n * n);
-
-      counter = counter+1;
-    }
-
-    else {
-      /* run a central finite differencing scheme to solve
-       * the wave equation in 2D */
-
-      #pragma omp parallel for default(shared) private(i, j, idx, idx_old, idx_new, idx_peb) schedule(dynamic, BLK_SIZE) num_threads(nthreads)
-      for(i = 0; i < n; i++)
-      {
-
-        for(j = 0; j < n; j++)
+    /* run a central finite differencing scheme to solve
+    //  * the wave equation in 2D */
+    // #pragma acc kernels loop private(i, j, idx)
+    //#pragma acc kernels loop present(un[:n*n],uc[:n*n],uo[:n*n],pebbles[:n*n], n)
+    #pragma acc kernels loop private(i, j, idx) present(un,uc,uo,pebbles,n)
+    #pragma omp parallel for default(shared) private(i, j, idx) num_threads(nthreads)
+    for( i = 0; i < n; i++)
         {
-          idx_new = j + i * n + (counter%OPTIM)*n*n;
-
-          idx = j + i * n + ((counter%OPTIM)-1)*n*n;
-
-          idx_old = j + i * n + ((counter%OPTIM)-2)*n*n;
-
-          idx_peb = j + i * n;
-
-          /* impose the u|_s = 0 boundary conditions */
-          if( i == 0 || i == n - 1 || j == 0 || j == n - 1)
+          #pragma acc cache(uc[(i-2)*n:(i+2)*n])
+          for( j = 0; j < n; j++)
           {
-            un[idx] = 0.;
-            continue;
+            idx = j + i * n;
+
+            /* impose the u|_s = 0 boundary conditions */
+            if(i < 2 || i > n - 3 || j < 2 || j > n - 3)
+            {
+                  un[idx] = 0.;
+            }
+
+            else
+            {
+            un[idx] = 2 * uc[idx] - uo[idx] + VSQR * (dt * dt) * ((uc[idx - 1] + uc[idx + 1] + uc[idx + n] + uc[idx - n] +
+                                                                  0.25 * (uc[idx+n- 1] + uc[idx+n+1] + uc[idx-n-1] + uc[idx-n+1]) +
+                                                                  0.125 * (uc[idx-2] + uc[idx + 2] + uc[idx-2*n] + uc[idx+2*n]) -
+                                                                  5.5 * uc[idx])*optDiv + f(pebbles[idx], t));
+
+            }
           }
-
-          int NeighNeigh = 0;
-
-          if((i > 1 && i < n - 2) && (j > 1 && j < n - 2))
-          {
-             NeighNeigh = 0.125*(un[idx-2] + un[idx+2] + un[idx - 2*(n + 4)] - un[idx + 2*(n + 4)]);  // WW, EE, NN, SS;
-          }
-
-          int immNeigh = 0.25*(un[idx - n - 5] + un[idx - n - 3] + un[idx + n + 3] + un[idx + n + 5]);  // NW, NE, SW, SE;
-
-          int Neigh = un[idx-1] + un[idx+1] + un[idx + n + 4] + un[idx - n - 4]; // W, E, S, N
-
-          un[idx_new] = 2*un[idx] - un[idx_old] + VSQR *(dt * dt) * (Neigh + immNeigh + NeighNeigh - 5.5 * un[idx])/(h * h) + f(pebbles[idx_peb],t);
-          /* otherwise do the FD scheme */
         }
-      }
 
-
-      counter = counter+1;
+    if(!tpdt(&t,dt,end_time)) break;
+    else{
+      double *temp_d = uo;
+      uo = uc;
+      uc = un;
+      un = temp_d;
     }
 
-    /* update the calculation arrays for the next time step */
-    // memcpy(uo, uc, sizeof(double) * n * n);
-    // memcpy(uc, un, sizeof(double) * n * n);
+    #ifdef _OPENACC
+      //printf("%p, %p, %p\n", uc, uo, un);
+    #endif
 
-    /* have we reached the end? */
-    if(!tpdt(&t,dt,end_time)) break;
+    #ifdef _OPENMP
+      //printf("%p, %p, %p\n", uc, uo, un);
+    #endif
+
   }
-
-  if (counter%OPTIM == 0 || counter%OPTIM == 1) counter = OPTIM-1;
-  else{
-      counter = counter%OPTIM;
-  }
-
+  #pragma acc exit data copyout(un[:n*n],uc[:n*n],uo[:n*n],pebbles[:n*n], n)
 
   /* cpy the last updated to the output array */
-  memcpy(u, un+(counter*n*n), sizeof(double) * n * n);
+  memcpy(u, un, sizeof(double) * n * n);
+
+  // Free Allocated Resources
+  free(uc);
+  free(uo);
   free(un);
 }
 
@@ -370,7 +350,7 @@ void init_pebbles(double *p, int pn, int n)
 *   up and down on the surface, driving more energic waves, for
 *   example.
 ******************************/
-double f(double p, double t)
+inline double f(double p, double t)
 {
   return -expf(-TSCALE * t) * p;
 }
@@ -386,7 +366,7 @@ void init(double *u, double *pebbles, int n)
 {
   int i, j, idx;
 
-  //#pragma omp parallel for default(shared) private(i, j, idx) schedule(dynamic, BLK_SIZE) num_threads(nthreads)
+  //#pragma omp parallel for default(shared) private(i, j, idx)  num_threads(nthreads)
   for(i = 0; i < n ; i++)
   {
     for(j = 0; j < n ; j++)
@@ -478,7 +458,7 @@ void fastMemCpy(void *dest, const void *src, size_t n)
 
    int i;
 
-   #pragma omp parallel for default(shared) private(i) schedule(dynamic, BLK_SIZE) num_threads(nthreads)
+   #pragma omp parallel for default(shared) private(i)  num_threads(nthreads)
    for (i=0; i<n; i++)
        *(cdest+i) = *(csrc+i);
 }

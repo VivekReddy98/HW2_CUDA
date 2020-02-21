@@ -1,0 +1,79 @@
+
+	      Using Memcpy Operations
+running ./lake with (1024 x 1024) grid, until 2.000000, with 1 threads
+Initialization took 0.029191 seconds
+Simulation took 322.520469 seconds
+Init+Simulation took 322.549660 seconds
+
+		  OPTIM VAL: 10 (Single Thread)
+running ./lake with (1024 x 1024) grid, until 2.000000, with 1 threads
+Initialization took 0.030446 seconds
+Simulation took 290.418753 seconds
+Init+Simulation took 290.449199 seconds
+
+
+                 OPTIM VAL: 5 (Single Thread)
+running ./lake with (1024 x 1024) grid, until 2.000000, with 1 threads
+Initialization took 0.030622 seconds
+Simulation took 218.800674 seconds
+Init+Simulation took 218.831296 seconds
+
+		    16-threads (outer)
+running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+Initialization took 0.029576 seconds
+Simulation took 17.604270 seconds
+Init+Simulation took 17.633846 seconds
+
+		   16-threads (inner)
+running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+Initialization took 0.029899 seconds
+Simulation took 39.788245 seconds
+Init+Simulation took 39.818144 seconds
+
+		 16-threads (Collapse(2))
+running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+Initialization took 0.029761 seconds
+Simulation took 25.874648 seconds
+Init+Simulation took 25.904409 seconds
+
+		  16-Threads (Init-Update)
+running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+Initialization took 0.050815 seconds
+Simulation took 17.724143 seconds
+Init+Simulation took 17.774958 seconds
+
+		  16-threads (fastMemCpy)
+running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+Initialization took 0.053911 seconds
+Simulation took 18.302087 seconds
+Init+Simulation took 18.355998 seconds
+
+ 		  Dynamic Scheduling - 16
+running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+Initialization took 0.029693 seconds
+Simulation took 20.434877 seconds
+Init+Simulation took 20.464570 seconds
+
+		  Dynamic Scheduling -32
+running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+Initialization took 0.029239 seconds
+Simulation took 18.259358 seconds
+Init+Simulation took 18.288597 seconds
+
+		 Dynamic Scheduling - 64
+running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+Initialization took 0.032275 seconds
+Simulation took 18.777731 seconds
+Init+Simulation took 18.810006 seconds
+
+		 Dynamic Scheduling - 256
+running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+Initialization took 0.030024 seconds
+Simulation took 54.689461 seconds
+Init+Simulation took 54.719485 seconds
+
+                 Dynamic Scheduling - 400
+running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+Initialization took 0.049688 seconds
+Simulation took 77.585295 seconds
+Init+Simulation took 77.634983 seconds
