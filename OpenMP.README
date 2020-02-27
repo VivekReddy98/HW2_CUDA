@@ -1,0 +1,133 @@
+vkarri
+Vivek Reddy Karri
+
+Q1) How/why does your optimization for removing memory copies work?
+Ans) I've tried a technique of circular pointer switching to remove the memory copying operation.
+	 This is implenented in such a way, after every Finite-Difference loops (newly updated result is in un), 
+	 if the loop doesn't break, then make un <- uc, uc <- uo and uo <- un. and then run the FD Loop again and continue the process until the while loop breaks. 
+	 Correctness is verified by the checking the diff. 
+
+	Performance Stats Observed:
+	
+			Using Memcpy Operations
+	running ./lake with (1024 x 1024) grid, until 2.000000, with 1 threads
+	Initialization took 0.029191 seconds
+	Simulation took 322.520469 seconds
+	Init+Simulation took 322.549660 seconds
+
+			Optimization on Single thread.
+	running ./lake with (1024 x 1024) grid, until 2.000000, with 1 threads
+	Initialization took 0.030622 seconds
+	Simulation took 218.800674 seconds
+	Init+Simulation took 218.831296 seconds
+
+Q2) Does which loop you parallelized matter? Why or why not?
+Ans) Yeah it matters big time because to achieve performance gains, 
+	 thread creation and deletion overhead, context switching overhead (Not very sure of this happening as there are 16-threads and 16-processors assigned) 
+	 and cache thrashing shouldn't bottle neck the concurrency. 
+	
+		
+Q3) Does parallelizing both loops make a difference? Why or why not?
+Ans) Similar results were observed because, paralellizing inner loop includes, thread creation and deletion overhead being, 
+	 1024 times more than the technique of parallelizing outer loop.
+	 Collapsing both the loops was much better than the inner-loop paralellization. However, still not better than outer-loop parallelization.
+	 Collapsing would may be reap benefits, if the image size grows higher.
+	 
+	Performance Stats observed:     
+
+		            16-threads (outer)
+	running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+	Initialization took 0.010691 seconds
+	Simulation took 15.868330 seconds
+	Init+Simulation took 15.879021 seconds
+
+			    16-threads (inner)
+	running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+	Initialization took 0.010550 seconds
+	Simulation took 49.185745 seconds
+	Init+Simulation took 49.196295 seconds
+
+
+			  16-threads (Collapse(2))
+	running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+	Initialization took 0.011106 seconds
+	Simulation took 25.362385 seconds
+	Init+Simulation took 25.373491 seconds
+
+
+Q4) Why does parallelizing memory initializations matter?
+Ans) Memory is usually the bottleneck because, memory access times are orders of magnitude slower than CPU speeds. 
+	 However, Paralellizing this operation may or may not reap benefits, since this isn't a CPU bound operation and is a I/O bound operation.
+	 However, this could be useful in situations when accessing a memory by single thread is blocking and is wasting CPU cycles. 
+	 In this case, if multiple threads are used, while one threads waits for a resource, other threads can retrieve and set some values which are in cache and this could benefit. 
+	 Nonetheless, these are still conditional based on thread creation and deletion overhead, cache thrashing not overtaking performance gains. 
+	 The latter appies in our case and parallelizing memory operation was indeed slightly slower.
+
+	Performance Stats observed: 
+
+			16-Threads (Init-Update)
+	running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+	Initialization took 0.010691 seconds
+	Simulation took 15.868330 seconds
+	Init+Simulation took 15.879021 seconds
+			
+			16-threads (fastMemCpy)
+	running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+	Initialization took 0.010385 seconds
+	Simulation took 16.308826 seconds
+	Init+Simulation took 16.319211 seconds
+
+
+Q5) Does the scheduling type matter? Why or why not?
+Ans) Yeah this should also be carefully considered, as allocation should atleast be uniformly distributed and should ideally exploit spatial locality.
+	 This can be observed through the experiments conducted, Any Dynamic scheduling over 1024/nthreads i.e. > 64 is obviously useless, 
+	 because the full potential of threads is not utilized even having enough CPU bound operations. 
+	 Also, allocating very low is not very performant in our case because the next n-number of operations allocated to a thread after completing it's share may not be spatially local.
+	 The winner in our case was 64 because every thread is loaded same ammunition to fire and took less concurrent cummulative time.  
+	 In any case, Static Scheduling was the fastest approach anyway.
+
+	Performance Stats Observed:
+	
+			Dynamic Scheduling - 16
+	running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+	Initialization took 0.010817 seconds
+	Simulation took 16.607642 seconds
+	Init+Simulation took 16.618459 seconds
+
+
+			Dynamic Scheduling -32
+	running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+	Initialization took 0.010979 seconds
+	Simulation took 16.585983 seconds
+	Init+Simulation took 16.596962 seconds
+
+
+			Dynamic Scheduling - 64
+	running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+	Initialization took 0.010361 seconds
+	Simulation took 16.478266 seconds
+	Init+Simulation took 16.488627 seconds
+
+				
+			Dynamic Scheduling - 256
+	running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+	Initialization took 0.011403 seconds
+	Simulation took 62.790403 seconds
+	Init+Simulation took 62.801806 seconds
+			
+			Dynamic Scheduling - 400
+	running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+	Initialization took 0.049688 seconds
+	Simulation took 77.585295 seconds
+	Init+Simulation took 77.634983 seconds
+
+Q6) This program is particularly easy to parallelize. Why?	 
+Ans) Because, the loop constructs are embarassingly parallel, as there no dependencies  between the left side of the operands for two loops. 
+	 Although, While loop cannot be parallelized since, it depends on the previous interations of un.  
+
+Q7) Can you think of other optimizations either in the code or the OpenMP directives that could further speed up the program? Include a thorough discussion of optimizations?
+Ans) A few division/multiplication operations can be pre-computed in the beginning and directly used and save some cycles. (Because multiplication and division are not single-cycle operations)
+	 
+
+
+

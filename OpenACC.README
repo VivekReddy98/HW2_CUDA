@@ -1,0 +1,254 @@
+
+vkarri 
+Vivek Reddy Karri
+
+
+Q1 & 2) Your lake.log timings and kernel timing statistics (stdout) for each optimization? Discuss each optimization (one at a time) in detail?
+
+Ans) Before going to OpenACC, results of the best performant serial version is shown here.
+
+                                  Serial Program BenchMark.
+                running ./lake with (512 x 512) grid, until 4.000000, with 1 threads
+                Initialization took 0.011856 seconds
+                Simulation took 68.137127 seconds
+                Init+Simulation took 68.148983 seconds
+
+
+OpenACC Optimizations:
+
+Optimization 1) MemCpy Optimized.
+              Instead of 1000's of useless copies everytime, placeholders was copied into GPU memory
+              once before and after the execution of the while loop
+
+                          lake.log
+              running ./lake with (512 x 512) grid, until 4.000000, with 16 threads
+              Initialization took 0.011424 seconds
+              Simulation took 1.570750 seconds
+              Init+Simulation took 1.582174 seconds
+
+                          OpenACC Runtime Statistics:
+              Accelerator Kernel Timing data
+              /home/vkarri/HW2_CUDA/OpenMP/lake.c
+                run_sim  NVIDIA  devicenum=0
+                  time(us): 709,464
+                  224: data region reached 1 time
+                      224: data copyin transfers: 5
+                           device time(us): total=3,685 max=933 min=9 avg=737
+                  231: compute region reached 4097 times
+                      236: kernel launched 4097 times
+                          grid: [16x128]  block: [32x4]
+                           device time(us): total=702,052 max=177 min=157 avg=171
+                          elapsed time(us): total=793,706 max=830 min=179 avg=193
+                  231: data region reached 8194 times
+                  274: data region reached 1 time
+                      274: data copyout transfers: 5
+                           device time(us): total=3,727 max=938 min=11 avg=745
+
+Final Execution time: 1.582174 secs.
+
+Optimization 2) MemCpy Optimized + Manual Tweaking of Gangs and Threads.
+                Along, with the optimization discussed before, gangs and threads were set manually.
+
+                                  lake.log
+               running  ./lake with (512 x 512) grid, until 4.000000, with 16 threads
+               Initialization took 0.008107 seconds
+               Simulation took 1.608010 seconds
+               Init+Simulation took 1.616117 seconds
+
+
+               Accelerator Kernel Timing data
+              /home/vkarri/HW2_CUDA/OpenMP/lake.c
+                run_sim  NVIDIA  devicenum=0
+                  time(us): 979,995
+                  225: data region reached 1 time
+                      225: data copyin transfers: 5
+                           device time(us): total=1,522 max=395 min=10 avg=304
+                  232: compute region reached 4097 times
+                      236: kernel launched 4097 times
+                          grid: [16x32]  block: [32x16]
+                           device time(us): total=977,128 max=261 min=236 avg=238
+                          elapsed time(us): total=1,069,546 max=819 min=258 avg=261
+                  232: data region reached 8194 times
+                  274: data region reached 1 time
+                      274: data copyout transfers: 5
+                           device time(us): total=1,345 max=342 min=12 avg=269
+
+Final Execution time: 1.616117 secs.
+
+Optimization 3) MemCpy Optimized + Inline Function f().
+             I thought function call was made to the CPU end from GPU end and hence made it inline, 
+             so that it should be performed on the GPU side itself.(of GPU instruction of expf)
+
+                                lake.log
+              running ./lake with (512 x 512) grid, until 4.000000, with 16 threads
+              Initialization took 0.003446 seconds
+              Simulation took 1.251639 seconds
+              Init+Simulation took 1.255085 seconds
+
+
+              Accelerator Kernel Timing data
+              /home/vkarri/HW2_CUDA/OpenMP/lake.c
+                run_sim  NVIDIA  devicenum=0
+                  time(us): 705,418
+                  225: data region reached 1 time
+                      225: data copyin transfers: 5
+                           device time(us): total=1,519 max=393 min=10 avg=303
+                  232: compute region reached 4097 times
+                      236: kernel launched 4097 times
+                          grid: [16x128]  block: [32x4]
+                           device time(us): total=702,556 max=176 min=158 avg=171
+                          elapsed time(us): total=792,550 max=617 min=179 avg=193
+                  232: data region reached 8194 times
+                  274: data region reached 1 time
+                      274: data copyout transfers: 5
+                           device time(us): total=1,343 max=342 min=11 avg=268
+
+Final Execution time: 1.255085 secs.
+
+Optimization 4) MemCpy Optimized + Inline Function f() + Cached un matrix + one division operation removed
+
+            Along with optimization 1 & 2, un matrix was accessed many times and hence thought of caching it in the
+            shared memory by placing three rows relative to the current i in the loop.
+            Also, multiple computation of division is reduced to a multiplication operation.
+            Thread Management was left to OpenACC itself.
+
+                                  lake.log
+              running ./lake with (512 x 512) grid, until 4.000000, with 16 threads
+              Initialization took 0.005227 seconds
+              Simulation took 1.183193 seconds
+              Init+Simulation took 1.188420 seconds
+
+              Accelerator Kernel Timing data
+              /home/vkarri/HW2_CUDA/OpenMP/lake.c
+                run_sim  NVIDIA  devicenum=0
+                  time(us): 458,606
+                  226: data region reached 1 time
+                      226: data copyin transfers: 6
+                           device time(us): total=1,646 max=422 min=7 avg=274
+                  233: compute region reached 4097 times
+                      238: kernel launched 4097 times
+                          grid: [16x128]  block: [32x4]
+                           device time(us): total=455,299 max=126 min=104 avg=111
+                          elapsed time(us): total=561,896 max=829 min=128 avg=137
+                  233: data region reached 8194 times
+                  276: data region reached 1 time
+                      276: data copyout transfers: 5
+                           device time(us): total=1,661 max=419 min=12 avg=332
+
+Final Execution time: 1.188420 secs.
+
+
+Q3) The effect of the problem size (smaller vs. larger grids, short vs. longer simulation times)?
+Ans) The OpenACC Acceleration scaled linearly for varying grid sizes.
+      Experimentation on 1024 * 1024 grid showed a linear scaling w.r.t pixels in the image trend.
+      Scale-up with Simulation time is super-linear, experimentation with end times of 16 sec and 64 sec showed the same.
+
+                                lake.log output for 1024 * 1024 grid
+          running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+          Initialization took 0.013497
+          Simulation took 2.445357 seconds
+          Init+Simulation took 2.458854 seconds
+
+                    Accelerator Kernel Timing data
+          /home/vkarri/HW2_CUDA/OpenMP/lake.c
+            run_sim  NVIDIA  devicenum=0
+              time(us): 1,711,225
+              226: data region reached 1 time
+                  226: data copyin transfers: 6
+                       device time(us): total=5,663 max=1,427 min=8 avg=943
+              233: compute region reached 4097 times
+                  238: kernel launched 4097 times
+                      grid: [32x256]  block: [32x4]
+                       device time(us): total=1,700,466 max=478 min=404 avg=415
+                      elapsed time(us): total=1,805,350 max=978 min=428 avg=440
+              233: data region reached 8194 times
+              276: data region reached 1 time
+                  276: data copyout transfers: 5
+                       device time(us): total=5,096 max=1,286 min=16 avg=1,019
+          [vkarri@c36 OpenMP]$ cat lake.log
+          running ./lake with (1024 x 1024) grid, until 2.000000, with 16 threads
+          Initialization took 0.013497 seconds
+          Simulation took 2.445357 seconds
+          Init+Simulation took 2.458854 seconds
+
+                                lake.log output for 2048 * 2048 grid
+          running ./lake with (2048 x 2048) grid, until 2.000000, with 16 threads
+          Initialization took 0.038376 seconds
+          Simulation took 14.144933 seconds
+          Init+Simulation took 14.183309 seconds
+
+                  Accelerator Kernel Timing data
+          /home/vkarri/HW2_CUDA/OpenMP/lake.c
+            run_sim  NVIDIA  devicenum=0
+              time(us): 13,109,917
+              226: data region reached 1 time
+                  226: data copyin transfers: 10
+                       device time(us): total=22,478 max=2,825 min=7 avg=2,247
+              233: compute region reached 8193 times
+                  238: kernel launched 8193 times
+                      grid: [64x512]  block: [32x4]
+                       device time(us): total=13,067,236 max=1,860 min=1,586 avg=1,594
+                      elapsed time(us): total=13,282,488 max=2,160 min=1,611 avg=1,621
+              233: data region reached 16386 times
+              276: data region reached 1 time
+                  276: data copyout transfers: 13
+                       device time(us): total=20,203 max=2,518 min=13 avg=1,554
+
+
+                              lake.log output for end_time of 16 sec.
+        running ./lake with (512 x 512) grid, until 16.000000, with 16 threads
+        Initialization took 0.004257 seconds
+        Simulation took 2.926202 seconds
+        Init+Simulation took 2.930459 seconds
+
+                Accelerator Kernel Timing data
+        /home/vkarri/HW2_CUDA/OpenMP/lake.c
+          run_sim  NVIDIA  devicenum=0
+            time(us): 1,750,132
+            226: data region reached 1 time
+                226: data copyin transfers: 6
+                     device time(us): total=1,465 max=378 min=6 avg=244
+            233: compute region reached 16385 times
+                238: kernel launched 16385 times
+                    grid: [16x128]  block: [32x4]
+                     device time(us): total=1,747,323 max=125 min=103 avg=106
+                    elapsed time(us): total=2,169,599 max=1,139 min=127 avg=132
+            233: data region reached 32770 times
+            276: data region reached 1 time
+                276: data copyout transfers: 5
+                     device time(us): total=1,344 max=361 min=13 avg=268
+
+
+                            lake.log output for end_time of 64 sec.
+           running ./lake with (512 x 512) grid, until 64.000000, with 16 threads
+           Initialization took 0.003832 seconds
+           Simulation took 10.055103 seconds
+           Init+Simulation took 10.058935 seconds
+
+                    Accelerator Kernel Timing data
+          /home/vkarri/HW2_CUDA/OpenMP/lake.c
+            run_sim  NVIDIA  devicenum=0
+              time(us): 6,917,049
+              226: data region reached 1 time
+                  226: data copyin transfers: 6
+                       device time(us): total=1,469 max=381 min=7 avg=244
+              233: compute region reached 65537 times
+                  238: kernel launched 65537 times
+                      grid: [16x128]  block: [32x4]
+                       device time(us): total=6,914,250 max=125 min=103 avg=105
+                      elapsed time(us): total=8,703,956 max=55,598 min=128 avg=132
+              233: data region reached 131074 times
+              276: data region reached 1 time
+                  276: data copyout transfers: 5
+                       device time(us): total=1,330 max=349 min=12 avg=266
+
+
+Q4) Where your biggest optimization came from (eg thread scheduling? memory management? screaming at the screen louder?)
+Ans) Optimization Strategy 4 was were the best possible optimization came from.
+     It involved: MemCpy Optimized + Inline Function f() + Cached un matrix + one division operation removed + Automatic Thread Management.
+     Final Simulation Time was 1.188420 sec.
+     performance benefit was around 57x, i.e 68.148983/1.188420
+
+Q5) Possible improvements in the code, etc?
+Ans) For larger grid sizes, the caching technique might have to be changed
+     because the row sizes could be big and might not fit in the cache line resulting in cache thrashing.
