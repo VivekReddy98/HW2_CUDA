@@ -2,7 +2,7 @@
 Assigment Completed as a part of CSC 548 Paralell Systems at NC State University.
 
 
-## Task 1: Indefinite Integration of a 1D sine function using CUDA.
+## Task 1: Indefinite Integral of a 1D sine function using CUDA.
 1) Approach is specified in the p2.README file.
 
 ## Task 2: Accelerating 2D Ripple Propagation Simulation using Parallel Programming (CUDA & MPI)
