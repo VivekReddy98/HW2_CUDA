@@ -1,0 +1,47 @@
+sjoshi26 shashank joshi
+akwatra archit kwatra
+vkarri vivek reddy karri
+
+Q1) What data structures did you have to place in persistent memory?
+Ans: 1) pebs matrix, uo and uc matrices (in Heap Snapshot)
+     2) Pointer references to these matrices in global variables
+     3) Time Variable (Global Variable)
+     4) initialization_flag variable (Global Variable)
+
+     Note: The Code from HW2-V1 was modified a bit to remove unnecessary memory copies in and out of run_cpu function.
+
+     Only uo and uc were placed in memory but not the un matrix. On every iteration, the matrices uo and uc were updated.
+     pebs matrix which is also placed is persistent memory because of the randomness present in re-initialization (Although made stable in the current implementation)
+     Time variable is obviously required to store the timesteps completed till that point
+     initialization_flag is an guarenteed indication that, uo, uc and other initializations have been made
+
+     Program Flow:
+     1) Backup Files are created to Store Persistent Variables
+     2) PERM Global Variables declared above are initialized
+     3) Add perm initial code to open MMAP and BACKUP file and check if the execution is a re-start/initial execution
+     4) If the execution is a restart, restore gloabal variables and heap.
+     5) Else, compute inital values of uo, uc, pebs, t and initialization flag
+     6) Start executing the run_cpu function, it resume based on t varible.
+     7) run_cpu computes one time step and then backs up the data.
+     8) if interrupted, the execution starts from the timestep saved
+     9) Finally, save the final lake state and free variables and clean up the backup data
+
+
+Q2) What is the overhead of checkpointing?
+Ans: Because of the number of memory/page transfers included in backing up the data to and from persistent storage to main memory,
+     there was a significant overhead observed in checkpointing
+
+    A) Time Taken Without interruption With Checkpointing  ~ 40 sec
+
+        real	0m39.947s
+        user	0m1.056s
+        sys	0m2.689s
+
+    B) Time Taken Without interruption With Checkpointing  ~ 1 sec
+
+        real	0m0.524s
+        user	0m0.476s
+        sys	0m0.021s
+
+    Clearly Checkpointing overhead is >40 time the time taken by non-checkpointing code.
+    Although, this can be reduce by checkpointing once in a few iterations, Achieving a tradeoff

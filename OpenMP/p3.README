@@ -1,4 +1,8 @@
 
+vkarri 
+Vivek Reddy Karri
+
+
 Q1 & 2) Your lake.log timings and kernel timing statistics (stdout) for each optimization? Discuss each optimization (one at a time) in detail?
 
 Ans) Before going to OpenACC, results of the best performant serial version is shown here.
@@ -72,7 +76,8 @@ Optimization 2) MemCpy Optimized + Manual Tweaking of Gangs and Threads.
 Final Execution time: 1.616117 secs.
 
 Optimization 3) MemCpy Optimized + Inline Function f().
-             I thought function call was made to the CPU end and hence made it inline, so that it should be performed on the GPU side itself.
+             I thought function call was made to the CPU end from GPU end and hence made it inline, 
+             so that it should be performed on the GPU side itself.(of GPU instruction of expf)
 
                                 lake.log
               running ./lake with (512 x 512) grid, until 4.000000, with 16 threads

@@ -12,5 +12,8 @@ Assigment Completed as a part of CSC 548 Paralell Systems at NC State University
 4) Performance comparison and the implementational nuances are specified in folder/p3.README.
  
 ## Task 3: Accelerating 2D Ripple Propagation Simulation using OpenMP and OpenACC
-1) Acheieved an Acceleration of 50x using OpenACC and around 30x using OpenMP.
+1) Achieved an Acceleration of 50x using OpenACC and around 30x using OpenMP.
 2) Optimizations applied and performance results are in OpenMP.README and OpenACC.README
+
+### Task 4: Fault Tolerance in Serial Ripple Simulation Program using Persistent Memory Allocation
+
