@@ -15,5 +15,7 @@ Assigment Completed as a part of CSC 548 Paralell Systems at NC State University
 1) Achieved an Acceleration of 50x using OpenACC and around 30x using OpenMP.
 2) Optimizations applied and performance results are in OpenMP.README and OpenACC.README
 
-### Task 4: Fault Tolerance in Serial Ripple Simulation Program using Persistent Memory Allocation
+## Task 4: Fault Tolerance in Serial Ripple Simulation Program using Persistent Memory Allocation
+
+Reference: https://dl.acm.org/doi/10.1145/1345206.1345220 (A very good read to understand subtle Performance Optimizations on GPU)
 
