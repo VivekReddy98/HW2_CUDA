@@ -4,7 +4,6 @@ akwatra archit kwatra
 vkarri vivek reddy karri
 */
 
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -84,13 +83,13 @@ int main(int argc, char *argv[])
 
   /* -------------------------------------------Executing the code and recording the time ---------------------------------------*/
 
-  gettimeofday(&cpu_start, NULL);
-  run_cpu(u_cpu, u_i0, u_i1, pebs, npoints, h, end_time); // Code which runs CPU Version of 13pt stencil evolve function.
-  gettimeofday(&cpu_end, NULL);
-
-  elapsed_cpu = ((cpu_end.tv_sec + cpu_end.tv_usec * 1e-6)-(
-                  cpu_start.tv_sec + cpu_start.tv_usec * 1e-6));
-  printf("CPU took %f seconds\n", elapsed_cpu);
+  // gettimeofday(&cpu_start, NULL);
+  // run_cpu(u_cpu, u_i0, u_i1, pebs, npoints, h, end_time); // Code which runs CPU Version of 13pt stencil evolve function.
+  // gettimeofday(&cpu_end, NULL);
+  //
+  // elapsed_cpu = ((cpu_end.tv_sec + cpu_end.tv_usec * 1e-6)-(
+  //                 cpu_start.tv_sec + cpu_start.tv_usec * 1e-6));
+  // printf("CPU took %f seconds\n", elapsed_cpu);
 
   gettimeofday(&gpu_start, NULL);
   run_gpu(u_gpu, u_i0, u_i1, pebs, npoints, h, end_time, nthreads); // Code which runs GPU Accelarated Version of 13pt stencil evolve function.
@@ -103,6 +102,7 @@ int main(int argc, char *argv[])
   print_heatmap("lake_f.dat", u_cpu, npoints, h);
 
   /* -------------------------------------------Executing the code and recording the time ---------------------------------------*/
+
 
   free(u_i0);
   free(u_i1);

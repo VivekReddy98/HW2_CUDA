@@ -235,7 +235,7 @@ void run_sim(double *u, double *u0, double *u1, double *pebbles, int n, double h
     // OpenACC Pragma Directive for paralellizing Outer Loop.
     #pragma acc kernels loop private(i, j, idx) present(un,uc,uo,pebbles,n)
     // OpenMP Pragma Directive for paralellizing Outer Loop.
-    #pragma omp parallel for default(shared) private(i, j, idx) num_threads(nthreads)
+    #pragma omp parallel for default(shared) schedule(dynamic, 256) private(i, j, idx) num_threads(nthreads)
     for( i = 0; i < n; i++)
         {
           // Caching uc for faster performance

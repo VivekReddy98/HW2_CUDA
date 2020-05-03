@@ -1,0 +1,22 @@
+# vkarri
+# Vivek Reddy Karri
+
+Timing Data Collected:
+
+Parameters:
+        npebs : 5
+        time_finish: 1.0
+        nthreads: 8
+        GPU Model Used: rtx2060
+
+Grid Size              V2                       Global cooperative barrier
+            GPU_Comp(msec)  run_gpu(sec)      GPU_Comp(msec)     run_gpu(sec)
+  16          2.063328       1.412498            0.218688         1.429932
+  32          4.513248       1.423358            0.354976         1.439934
+  64         13.571936       1.492247            1.162208         1.488299
+  128        61.630432       1.601921            6.321856         1.525635
+  256       417.743103       1.739467           43.015232         1.565267
+  512      2137.929443       3.438590          359.637024         1.734533
+  1024    12925.713867      14.259342         2322.159668         3.802607
+  2048
+  3072

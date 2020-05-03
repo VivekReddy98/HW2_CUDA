@@ -1,0 +1,24 @@
+# vkarri
+# Vivek Reddy Karri
+
+Timing Data Recorded
+
+Parameters:
+        npebs : 5
+        time_finish: 1.0
+        nthreads: 8
+        GPU Model Used: rtx2060
+
+Grid Size       V3            MPS
+ 32           1.433          1.156
+ 64           1.456          1.162
+ 128          1.769          1.238
+ 256          1.886          1.330
+ 512          2.375          2.053
+ 1024         6.492          7.897
+ 2048         37.787         50.769
+ 4096         375.539        225.1136
+
+Note: Time Recorded was GPU execution time.
+
+1) Compare your lake MPS and V3 lake MPI+GPU runtimes for different grid sizes. When is the MPS better, and when is it worse?

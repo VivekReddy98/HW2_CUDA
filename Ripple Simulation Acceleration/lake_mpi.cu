@@ -119,13 +119,13 @@ int main(int argc, char *argv[])
 
   print_heatmap(filename, u_i0, h);
 
-  gettimeofday(&cpu_start, NULL);
-  run_cpu(u_cpu, u_i0, u_i1, pebs, h, end_time);   // Code which runs CPU Version of MPI.
-  gettimeofday(&cpu_end, NULL);
-
-  elapsed_cpu = ((cpu_end.tv_sec + cpu_end.tv_usec * 1e-6)-(
-                  cpu_start.tv_sec + cpu_start.tv_usec * 1e-6));
-  printf("CPU took %f seconds\n", elapsed_cpu);
+  // gettimeofday(&cpu_start, NULL);
+  // run_cpu(u_cpu, u_i0, u_i1, pebs, h, end_time);   // Code which runs CPU Version of MPI.
+  // gettimeofday(&cpu_end, NULL);
+  //
+  // elapsed_cpu = ((cpu_end.tv_sec + cpu_end.tv_usec * 1e-6)-(
+  //                 cpu_start.tv_sec + cpu_start.tv_usec * 1e-6));
+  // printf("CPU took %f seconds\n", elapsed_cpu);
 
   gettimeofday(&gpu_start, NULL);
   run_gpu(u_gpu, u_i0, u_i1, pebs, h, end_time, nthreads); // Code which runs GPU Accelerated Version of MPI. (MPI-CUDA HYBRID), Function is found in lakegpu_mpi.cu

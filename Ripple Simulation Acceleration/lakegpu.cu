@@ -8,8 +8,16 @@ vkarri vivek reddy karri
 #include <stdio.h>
 #include <cuda_runtime.h>
 #include <time.h>
+#include <cuda.h>
+#include <cooperative_groups.h>
+#include <iostream>
+#include <math.h>
 
 // Variable and constant already defined on the lake.cu code so defined as extern.
+
+using namespace cooperative_groups;
+
+// namespace cg = cooperative_groups;
 
 #define __DEBUG
 
@@ -95,97 +103,158 @@ __device__ double f_pebble(double p, double t)
 
 // GPU - Specific evolve13pt function defined in V2, adopted for GPU accelaration on a single CPU.
 // 1D Grid and 2D Block Style is used. Threads are alse defined as 2D.
-__global__ void evolve13pt_gpu(double *un, double *uc, double *uo, double *pebbles, int n, double h, double dt, double t){
+__global__ void evolve13pt_gpu(double *un, double *uc, double *uo, double *pebbles, int n, double h, double t, double end_time, int* numiters, int TotalThreads){
 
+  double dt = h / 2;
 
-  int  idx_p_1;
+  grid_group g = this_grid();
 
-  int Neigh;  // North, East, North, South
+  double *temp_d;
 
-  int immNeigh; // NorthEast, NorthWest, SouthEast, SouthWest
+  int idx_p_1;
 
-  int NeighNeigh; // NorthNorth, WestWest, EastEast, SouthSouth
   int i_1;
   int j_1;
-  int idx;
-  idx_p_1 = blockIdx.x*blockDim.x*blockDim.y + threadIdx.y*blockDim.x+threadIdx.x;
+  int idx, blockId;
 
-   i_1=idx_p_1/n;
-   j_1=idx_p_1%n;
-   idx= (j_1+2) + (i_1+2)*(n+4);
+  while(1) {
 
-   if (idx >= (2*n + 2) && idx <= (((n+1)*n) + n + 1)) {
+    blockId = blockIdx.x + blockIdx.y * gridDim.x;
+    idx_p_1 = blockId * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;
 
-       Neigh= uc[idx-1] + uc[idx+1] + uc[idx + n + 4] + uc[idx - n - 4];
-       immNeigh = 0.25*(uc[idx - n - 5] + uc[idx - n - 3] + uc[idx + n + 3] + uc[idx + n + 5]);
-       NeighNeigh = 0.125*(uc[idx-2] + uc[idx+2] + uc[idx - 2*(n + 4)] - uc[idx + 2*(n + 4)]);  // WW, EE, NN, SS;
+    for (; idx_p_1 < n*n ; idx_p_1 += TotalThreads) {
 
-       un[idx] = 2*uc[idx] - uo[idx] + VSQR *(dt * dt) * (Neigh + immNeigh + NeighNeigh - 5.5 * uc[idx])/(h * h) + f_pebble(pebbles[idx_p_1],t);
+      i_1=idx_p_1/n;
+      j_1=idx_p_1%n;
+      idx = (j_1+2) + (i_1+2)*(n+4);
+
+      if (idx >= (2*n + 2) && idx <= (((n+1)*n) + n + 1)) {
+
+          un[idx] = 2*uc[idx] - uo[idx] + VSQR *(dt * dt) * (uc[idx-1] + uc[idx+1] + uc[idx + n + 4] + uc[idx - n - 4] +
+                                                            0.25*(uc[idx - n - 5] + uc[idx - n - 3] + uc[idx + n + 3] + uc[idx + n + 5])+
+                                                            0.125*(uc[idx-2] + uc[idx+2] + uc[idx - 2*(n + 4)] - uc[idx + 2*(n + 4)]) -
+                                                            5.5 * uc[idx])/(h * h) + f_pebble(pebbles[idx_p_1],t);
+      }
    }
+
+   // Synchronize the entire grid
+   g.sync();
+
+    // Check and updte the time, if crosses break.
+    if(t + dt > end_time) break;
+    else{
+      t = t + dt;
+      // Pointer Switching optimization instead of copying data to and fro from CPU data to GPU data.
+      temp_d = uc;
+      uc = un;
+      un = uo;
+      uo = temp_d;
+    }
+
+    g.sync();
+  }
+
 }
 
 
 
 void run_gpu(double *u, double *u0, double *u1, double *pebbles, int n, double h, double end_time, int nthreads)
 {
+  int pi=0;
+  CUdevice dev;
+  cuDeviceGet(&dev,0); // get handle to device 0
+  cuDeviceGetAttribute(&pi, CU_DEVICE_ATTRIBUTE_COOPERATIVE_LAUNCH, dev);
+
+  if (pi == 1){
+    // printf("Co-operative Launch Property is supported on this GPU\n");
+  }
+  else{
+    printf("Co-operative Launch Property is Not supported on this GPU\n");
+    // exit(1);
+  }
+
     cudaEvent_t kstart, kstop;
     float ktime;
-       int BLKS;
 
     /* HW2: Define your local variables here */
    int narea = (n+4) * (n+4);
    double t;
    double dt;
+
     t = 0.;
-    dt = h / 2.;
+    // dt = h / 2.;
 
-      double *uc, *uo; // Host Side Data
+    double *uc, *uo;
+    int *numitersHost; // Host Side Data
 
-      //un = (double*)calloc(narea, sizeof(double));
-      uc = (double*)calloc(narea, sizeof(double));
-      uo = (double*)calloc(narea, sizeof(double));
-      //pb = (double*)calloc(n*n, sizeof(double));
+    numitersHost = (int *)calloc(1, sizeof(int));
 
-      /* Set up device timers */
-      CUDA_CALL(cudaSetDevice(0));
-      CUDA_CALL(cudaEventCreate(&kstart));
-      CUDA_CALL(cudaEventCreate(&kstop));
+    // un = (double*)calloc(narea, sizeof(double));
+    uc = (double*)calloc(narea, sizeof(double));
+    uo = (double*)calloc(narea, sizeof(double));
+    //pb = (double*)calloc(n*n, sizeof(double));
 
-      double *un_cuda,*uc_cuda,*uo_cuda, *pb; // Device Side data
-    /* HW2: Add CUDA kernel call preperation code here */
+    /* Set up device timers */
+    CUDA_CALL(cudaSetDevice(0));
+    CUDA_CALL(cudaEventCreate(&kstart));
+    CUDA_CALL(cudaEventCreate(&kstop));
 
-       BLKS = n/nthreads;
-       BLKS += n%nthreads ? 1 : 0;
-      cudaMalloc((void**)&un_cuda, (narea)*sizeof(double));
-      cudaMalloc((void**)&uc_cuda, (narea)*sizeof(double));
-      cudaMalloc((void**)&uo_cuda, (narea)*sizeof(double));
-      cudaMalloc((void**)&pb, (n*n)*sizeof(double));
+    // Device Side data
+    double *un_cuda,*uc_cuda,*uo_cuda, *pb;
+    int *numiters;
 
-      cudaMemcpy(uc_cuda, u1, sizeof(double)*narea, cudaMemcpyHostToDevice);
-      cudaMemcpy(uo_cuda, u0, sizeof(double)*narea, cudaMemcpyHostToDevice);
-      cudaMemcpy(pb, pebbles, sizeof(double)*(n*n), cudaMemcpyHostToDevice);
+  /* HW2: Add CUDA kernel call preperation code here */
 
+    cudaMalloc((void**)&un_cuda, (narea)*sizeof(double));
+    cudaMalloc((void**)&uc_cuda, (narea)*sizeof(double));
+    cudaMalloc((void**)&uo_cuda, (narea)*sizeof(double));
+    cudaMalloc((void**)&pb, (n*n)*sizeof(double));
+    cudaMalloc((void**)&numiters, sizeof(int));
 
-      dim3 block_dim(nthreads, nthreads);
-      dim3 grid_dim(BLKS, BLKS);
+    cudaMemcpy(uc_cuda, u1, sizeof(double)*narea, cudaMemcpyHostToDevice);
+    cudaMemcpy(uo_cuda, u0, sizeof(double)*narea, cudaMemcpyHostToDevice);
+    cudaMemcpy(pb, pebbles, sizeof(double)*(n*n), cudaMemcpyHostToDevice);
+    cudaMemcpy(numiters, numitersHost, sizeof(int), cudaMemcpyHostToDevice);
 
+    /* HW2: Add main lake simulation loop here */
+
+    int numblocksperSM;
+
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(&numblocksperSM, evolve13pt_gpu, nthreads*nthreads, 0);
+
+    double blocks = sqrt(numblocksperSM);
+
+    int BLKS_x = (int)floor(blocks);
+    int BLKS_y = int(numblocksperSM/BLKS_x);
+
+    if (n*n < BLKS_x*BLKS_y*nthreads*nthreads){
+       BLKS_x = n / nthreads;
+       BLKS_y = BLKS_x + n%nthreads;
+    }
+
+    int TotalThreads = BLKS_x*BLKS_y*nthreads*nthreads;
+
+    std::cout << "\nNumber of Blocks Used: " << BLKS_x*BLKS_y << " Possible: " << numblocksperSM << std::endl;
+    std::cout << "Number of Total Threads possible for concurrent execution: " << TotalThreads << std::endl;
+
+    dim3 block_dim(nthreads, nthreads, 1);
+    dim3 grid_dim(BLKS_x, BLKS_y, 1);
+
+    void *kernelArgs[] = {
+      (void *)&un_cuda,  (void *)&uc_cuda, (void *)&uo_cuda, (void *)&pb,
+      (void *)&n, (void *)&h, (void *)&t,  (void *)&end_time, (void *)&numiters, (void *)&TotalThreads};
 
     /* Start GPU computation timer */
     CUDA_CALL(cudaEventRecord(kstart, 0));
 
-    /* HW2: Add main lake simulation loop here */
-    while(1)
-    {
-        evolve13pt_gpu<<<grid_dim,block_dim>>>(un_cuda, uc_cuda, uo_cuda, pb, n, h, dt, t);
+    CUDA_CALL(cudaLaunchCooperativeKernel((void *)evolve13pt_gpu, grid_dim, block_dim, kernelArgs, 0, NULL));
 
-        cudaMemcpy(uc, un_cuda, sizeof(double)*narea, cudaMemcpyDeviceToHost);
-   	    cudaMemcpy(uo, uc_cuda, sizeof(double)*narea, cudaMemcpyDeviceToHost);
+    CUDA_CALL(cudaDeviceSynchronize());
 
-        cudaMemcpy(uc_cuda, uc,  sizeof(double)*narea, cudaMemcpyHostToDevice);
-        cudaMemcpy(uo_cuda, uo,  sizeof(double)*narea, cudaMemcpyHostToDevice);
-
-        if(!tpdt(&t,dt,end_time)) break;
-    }
+    CUDA_CALL(cudaMemcpy(u, un_cuda, sizeof(double)*narea, cudaMemcpyDeviceToHost));
+    CUDA_CALL(cudaMemcpy(uc, uc_cuda, sizeof(double)*narea, cudaMemcpyDeviceToHost));
+	  CUDA_CALL(cudaMemcpy(uo, uo_cuda, sizeof(double)*narea, cudaMemcpyDeviceToHost));
+    CUDA_CALL(cudaMemcpy(numitersHost, numiters, sizeof(int), cudaMemcpyDeviceToHost));
 
     /* Stop GPU computation timer */
     CUDA_CALL(cudaEventRecord(kstop, 0));
@@ -193,16 +262,22 @@ void run_gpu(double *u, double *u0, double *u1, double *pebbles, int n, double h
     CUDA_CALL(cudaEventElapsedTime(&ktime, kstart, kstop));
     printf("GPU computation: %f msec\n", ktime);
 
+    // std::cout << "\nNumber of Iterations " << *numitersHost << std::endl;
+
+
     /* HW2: Add post CUDA kernel call processing and cleanup here */
 
-    cudaMemcpy(u, un_cuda, sizeof(double), cudaMemcpyDeviceToHost);
+    // cudaMemcpy(u, un_cuda, sizeof(double), cudaMemcpyDeviceToHost);
+
     cudaFree(un_cuda);
     cudaFree(uc_cuda);
     cudaFree(uo_cuda);
     cudaFree(pb);
+    cudaFree(numiters);
 
     free(uc);
     free(uo);
+    free(numitersHost);
 
     /* timer cleanup */
     CUDA_CALL(cudaEventDestroy(kstart));
