@@ -130,10 +130,12 @@ __global__ void evolve13pt_gpu(double *un, double *uc, double *uo, double *pebbl
 
       if (idx >= (2*n + 2) && idx <= (((n+1)*n) + n + 1)) {
 
-          un[idx] = 2*uc[idx] - uo[idx] + VSQR *(dt * dt) * (uc[idx-1] + uc[idx+1] + uc[idx + n + 4] + uc[idx - n - 4] +
+        un[idx] = 2*uc[idx] - uo[idx] + VSQR *(dt * dt) * (uc[idx-1] + uc[idx+1] + uc[idx + n + 4] + uc[idx - n - 4] +
                                                             0.25*(uc[idx - n - 5] + uc[idx - n - 3] + uc[idx + n + 3] + uc[idx + n + 5])+
                                                             0.125*(uc[idx-2] + uc[idx+2] + uc[idx - 2*(n + 4)] - uc[idx + 2*(n + 4)]) -
                                                             5.5 * uc[idx])/(h * h) + f_pebble(pebbles[idx_p_1],t);
+        if (idx_p_1 )
+        printf("%f %d\n", un[idx], idx_p_1);
       }
    }
 

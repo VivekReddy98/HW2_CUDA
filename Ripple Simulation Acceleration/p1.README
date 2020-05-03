@@ -1,7 +1,6 @@
 # vkarri
 # Vivek Reddy Karri
 
-Timing Data Recorded
 
 Parameters:
         npebs : 5
@@ -9,16 +8,33 @@ Parameters:
         nthreads: 8
         GPU Model Used: rtx2060
 
-Grid Size       V3            MPS
- 32           1.433          1.156
- 64           1.456          1.162
- 128          1.769          1.238
- 256          1.886          1.330
- 512          2.375          2.053
- 1024         6.492          7.897
- 2048         37.787         50.769
- 4096         375.539        225.1136
+Timing Data Recorded:
 
-Note: Time Recorded was GPU execution time.
+ Grid Size               V3                               V3 + MPS
+            GPU_Comp(msec)  Job Time(sec)      GPU_Comp(msec)     run_gpu(sec)
+   32         3.285504         1.973               2.817568          1.379
+   64         8.099808         2.073               7.171424          1.961
+   128       22.171072         2.498              21.823999          2.246
+   256      108.531456         2.905             117.556290          2.349
+   512      724.428772         4.536             767.371216          3.498
+   1024    4588.889160         7.880            5541.668457          9.684
+   2048   33214.402344        40.272           43649.710938         49.958
+   3072  112105.273438       120.141          147599.546875        161.694
+   4096  267655.593750       280.976          358849.656250        382.299
+
+Note: Job Time was calculated using time unix command.
+      GPU_Comp was taken from the maximum of the values returned by four processes.
 
 1) Compare your lake MPS and V3 lake MPI+GPU runtimes for different grid sizes. When is the MPS better, and when is it worse?
+Ans) When the Grid size is small:
+
+     MPS version is performing better. Possiby because of the network overhead for V3 and since the partition is small,
+     partitions would run seeemingly concurrently on the process's own share of Streaming Multiprocessor's and Memory.
+
+     Low Network overhead for MPS is visible in overall execution time and enough resources on the GPU in the GPU_comp time for grid sizes 32 to till 512.
+
+
+     When the Grid size if larger side of spectrum:
+
+     When all the paritions become too much for a single GPU i.e. due to resouce contention, the GPU_comp times started to worsen for MPS version when the grod size is 1024 and higher.
+     Though, there was network communication overhead for original V3, the work was huge that it was indeed better to use multiple GPU's which in reflectd by GPU_Comp times and Job Completion times.

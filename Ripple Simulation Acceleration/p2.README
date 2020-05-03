@@ -9,6 +9,16 @@ Parameters:
         nthreads: 8
         GPU Model Used: rtx2060
 
+Implementational Details:
+I have used Grid Synchronization Strategy. For the Grid sync to work, only a few threads which can concurrently are to be launched and executed
+# Num Concurrent Threads is given by: #multiprocessors (SMs) * #resident warps per SM * #threads per warp (- any threads because of shared memory constaints).
+
+On rtx2060, this number was 16 Blocks with 64 threads each i.e. 1024 threads per SM. But Grid size go upto any number and each thread had to do almost an order of magnitude more work.
+So, i had to modify the code which included two loops inside the kernel, one is the normal while loop which runs till the time ends,
+The other one is where work in uniformly shared across threads which are arranged in 2D Grid and 2D Blocks Manner.
+
+Finally, while loop included pointer swaps, for the code to work.
+
 Grid Size              V2                       Global cooperative barrier
             GPU_Comp(msec)  run_gpu(sec)      GPU_Comp(msec)     run_gpu(sec)
   16          2.063328       1.412498            0.218688         1.429932
@@ -18,5 +28,19 @@ Grid Size              V2                       Global cooperative barrier
   256       417.743103       1.739467           43.015232         1.565267
   512      2137.929443       3.438590          359.637024         1.734533
   1024    12925.713867      14.259342         2322.159668         3.802607
-  2048
-  3072
+  2048   128718.007812     130.237581        18761.673828        20.206254
+  3072   355868.531250     357.245842        61750.675781        63.202093
+
+Note: run_gpu() is the time taken for the complete execution of the run_gpu function.
+      GPU_Comp was taken from the maximum of the values returned by four processes.
+
+Q1) Based on the comparison, does the optimization with cooperative barriers benefit your lake application? Why or why not?
+
+    Yeah it does, since most importantly it eliminated the need of 4 memory transfer operations which occured after iteration to an from from GPU to host.
+
+    When the grid size was small, there was not much time difference in the run_gpu() section even though GPU_Comp was slightly lower for Co-operative Barriers.
+    But as the size grew, there was an exponential rise for the time taken by originak V2. However for cooperative barrier version, the growth was not as fast compared to original V2.
+
+    Also, since the work was almost equally spread among threads, large wasted cycles are probably escaped in the cooperative barrier.
+
+    One more possible reason being, as the implementation goes, nearby threads tend to access nearby elements leading to high cache hit ratio thus leading to better performance in co-operative barrier case.
