@@ -1,6 +1,4 @@
 /*
-sjoshi26 shashank joshi
-akwatra archit kwatra
 vkarri vivek reddy karri
 */
 
@@ -117,6 +115,7 @@ __global__ void evolve13pt_gpu(double *un, double *uc, double *uo, double *pebbl
   int j_1;
   int idx, blockId;
 
+  // Loop over till time ends
   while(1) {
 
     blockId = blockIdx.x + blockIdx.y * gridDim.x;
@@ -134,8 +133,6 @@ __global__ void evolve13pt_gpu(double *un, double *uc, double *uo, double *pebbl
                                                             0.25*(uc[idx - n - 5] + uc[idx - n - 3] + uc[idx + n + 3] + uc[idx + n + 5])+
                                                             0.125*(uc[idx-2] + uc[idx+2] + uc[idx - 2*(n + 4)] - uc[idx + 2*(n + 4)]) -
                                                             5.5 * uc[idx])/(h * h) + f_pebble(pebbles[idx_p_1],t);
-        if (idx_p_1 )
-        printf("%f %d\n", un[idx], idx_p_1);
       }
    }
 
@@ -171,7 +168,7 @@ void run_gpu(double *u, double *u0, double *u1, double *pebbles, int n, double h
     // printf("Co-operative Launch Property is supported on this GPU\n");
   }
   else{
-    printf("Co-operative Launch Property is Not supported on this GPU\n");
+    // printf("Co-operative Launch Property is Not supported on this GPU\n");
     // exit(1);
   }
 
@@ -186,12 +183,12 @@ void run_gpu(double *u, double *u0, double *u1, double *pebbles, int n, double h
     t = 0.;
     // dt = h / 2.;
 
-    double *uc, *uo;
+    double *un, *uc, *uo;
     int *numitersHost; // Host Side Data
 
     numitersHost = (int *)calloc(1, sizeof(int));
 
-    // un = (double*)calloc(narea, sizeof(double));
+    un = (double*)calloc(narea, sizeof(double));
     uc = (double*)calloc(narea, sizeof(double));
     uo = (double*)calloc(narea, sizeof(double));
     //pb = (double*)calloc(n*n, sizeof(double));
@@ -213,6 +210,7 @@ void run_gpu(double *u, double *u0, double *u1, double *pebbles, int n, double h
     cudaMalloc((void**)&pb, (n*n)*sizeof(double));
     cudaMalloc((void**)&numiters, sizeof(int));
 
+    cudaMemcpy(un_cuda, un, sizeof(double)*narea, cudaMemcpyHostToDevice);
     cudaMemcpy(uc_cuda, u1, sizeof(double)*narea, cudaMemcpyHostToDevice);
     cudaMemcpy(uo_cuda, u0, sizeof(double)*narea, cudaMemcpyHostToDevice);
     cudaMemcpy(pb, pebbles, sizeof(double)*(n*n), cudaMemcpyHostToDevice);
@@ -254,22 +252,17 @@ void run_gpu(double *u, double *u0, double *u1, double *pebbles, int n, double h
     CUDA_CALL(cudaDeviceSynchronize());
 
     CUDA_CALL(cudaMemcpy(u, un_cuda, sizeof(double)*narea, cudaMemcpyDeviceToHost));
-    CUDA_CALL(cudaMemcpy(uc, uc_cuda, sizeof(double)*narea, cudaMemcpyDeviceToHost));
-	  CUDA_CALL(cudaMemcpy(uo, uo_cuda, sizeof(double)*narea, cudaMemcpyDeviceToHost));
-    CUDA_CALL(cudaMemcpy(numitersHost, numiters, sizeof(int), cudaMemcpyDeviceToHost));
+
+    // CUDA_CALL(cudaMemcpy(u, un_cuda, sizeof(double)*narea, cudaMemcpyDeviceToHost));
+    // CUDA_CALL(cudaMemcpy(uc, uc_cuda, sizeof(double)*narea, cudaMemcpyDeviceToHost));
+	  // CUDA_CALL(cudaMemcpy(uo, uo_cuda, sizeof(double)*narea, cudaMemcpyDeviceToHost));
+    // CUDA_CALL(cudaMemcpy(numitersHost, numiters, sizeof(int), cudaMemcpyDeviceToHost));
 
     /* Stop GPU computation timer */
     CUDA_CALL(cudaEventRecord(kstop, 0));
     CUDA_CALL(cudaEventSynchronize(kstop));
     CUDA_CALL(cudaEventElapsedTime(&ktime, kstart, kstop));
     printf("GPU computation: %f msec\n", ktime);
-
-    // std::cout << "\nNumber of Iterations " << *numitersHost << std::endl;
-
-
-    /* HW2: Add post CUDA kernel call processing and cleanup here */
-
-    // cudaMemcpy(u, un_cuda, sizeof(double), cudaMemcpyDeviceToHost);
 
     cudaFree(un_cuda);
     cudaFree(uc_cuda);
@@ -279,6 +272,7 @@ void run_gpu(double *u, double *u0, double *u1, double *pebbles, int n, double h
 
     free(uc);
     free(uo);
+    free(un);
     free(numitersHost);
 
     /* timer cleanup */
